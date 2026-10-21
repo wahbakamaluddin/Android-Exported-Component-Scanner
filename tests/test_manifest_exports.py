@@ -9,16 +9,21 @@ SCRIPT = Path(__file__).resolve().parents[1] / "manifest_exports.py"
 
 
 class ManifestExportsCliTests(unittest.TestCase):
+    def run_cli_path(
+        self, manifest_path: Path, *arguments: str
+    ) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            [sys.executable, str(SCRIPT), str(manifest_path), *arguments],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
     def run_cli(self, manifest: str) -> subprocess.CompletedProcess[str]:
         with tempfile.TemporaryDirectory() as temporary_directory:
             manifest_path = Path(temporary_directory) / "AndroidManifest.xml"
             manifest_path.write_text(manifest, encoding="utf-8")
-            return subprocess.run(
-                [sys.executable, str(SCRIPT), str(manifest_path)],
-                capture_output=True,
-                text=True,
-                check=False,
-            )
+            return self.run_cli_path(manifest_path)
 
     def test_reports_explicit_and_potential_components_in_manifest_order(self):
         manifest = """\
@@ -74,6 +79,72 @@ class ManifestExportsCliTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0)
         self.assertEqual(result.stdout, "")
         self.assertEqual(result.stderr, "")
+
+    def test_output_option_writes_report_to_file(self):
+        manifest = """\
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <service android:name="com.example.SyncService"
+                 android:exported="true" />
+    </application>
+</manifest>
+"""
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            directory = Path(temporary_directory)
+            manifest_path = directory / "AndroidManifest.xml"
+            output_path = directory / "report.txt"
+            manifest_path.write_text(manifest, encoding="utf-8")
+
+            result = self.run_cli_path(
+                manifest_path, "--output", str(output_path)
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stdout, "")
+            self.assertEqual(result.stderr, "")
+            self.assertEqual(
+                output_path.read_text(encoding="utf-8"),
+                "EXPORTED service: com.example.SyncService | permission: none\n",
+            )
+
+    def test_missing_input_fails_without_traceback(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            missing_path = Path(temporary_directory) / "missing.xml"
+
+            result = self.run_cli_path(missing_path)
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("error:", result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
+
+    def test_invalid_xml_fails_without_traceback(self):
+        result = self.run_cli("<manifest>")
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("error:", result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
+
+    def test_output_directory_fails_without_traceback(self):
+        manifest = """\
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <receiver android:name="com.example.Receiver"
+                  android:exported="true" />
+    </application>
+</manifest>
+"""
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            directory = Path(temporary_directory)
+            manifest_path = directory / "AndroidManifest.xml"
+            manifest_path.write_text(manifest, encoding="utf-8")
+
+            result = self.run_cli_path(
+                manifest_path, "--output", str(directory)
+            )
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("error:", result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
 
 
 if __name__ == "__main__":

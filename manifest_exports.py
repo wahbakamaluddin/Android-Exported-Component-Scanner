@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 import argparse
+import sys
 import xml.etree.ElementTree as ET
+from pathlib import Path
+from typing import Optional
 
 
 ANDROID_ATTRIBUTE = "{{http://schemas.android.com/apk/res/android}}{}"
@@ -36,16 +39,25 @@ def scan_manifest(root: ET.Element) -> list[str]:
     return results
 
 
-def main() -> int:
+def main(argv: Optional[list[str]] = None) -> int:
     parser = argparse.ArgumentParser(
         description="List exported components from an Android manifest."
     )
     parser.add_argument("manifest", help="path to AndroidManifest.xml")
-    arguments = parser.parse_args()
+    parser.add_argument("-o", "--output", help="write the report to this file")
+    arguments = parser.parse_args(argv)
 
-    root = ET.parse(arguments.manifest).getroot()
-    for line in scan_manifest(root):
-        print(line)
+    try:
+        root = ET.parse(arguments.manifest).getroot()
+        lines = scan_manifest(root)
+        report = "\n".join(lines) + ("\n" if lines else "")
+        if arguments.output:
+            Path(arguments.output).write_text(report, encoding="utf-8")
+        else:
+            print(report, end="")
+    except (OSError, ET.ParseError) as error:
+        print(f"error: {error}", file=sys.stderr)
+        return 1
     return 0
 
 
