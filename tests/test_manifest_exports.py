@@ -146,6 +146,28 @@ class ManifestExportsCliTests(unittest.TestCase):
         self.assertIn("error:", result.stderr)
         self.assertNotIn("Traceback", result.stderr)
 
+    def test_output_cannot_overwrite_input_manifest(self):
+        manifest = """\
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <activity android:name="com.example.MainActivity"
+                  android:exported="true" />
+    </application>
+</manifest>
+"""
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            manifest_path = Path(temporary_directory) / "AndroidManifest.xml"
+            manifest_path.write_text(manifest, encoding="utf-8")
+
+            result = self.run_cli_path(
+                manifest_path, "--output", str(manifest_path)
+            )
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("error:", result.stderr)
+            self.assertNotIn("Traceback", result.stderr)
+            self.assertEqual(manifest_path.read_text(encoding="utf-8"), manifest)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -48,11 +48,17 @@ def main(argv: Optional[list[str]] = None) -> int:
     arguments = parser.parse_args(argv)
 
     try:
-        root = ET.parse(arguments.manifest).getroot()
+        manifest_path = Path(arguments.manifest)
+        root = ET.parse(manifest_path).getroot()
+        output_path = Path(arguments.output) if arguments.output else None
+        if output_path and output_path.resolve() == manifest_path.resolve():
+            print("error: output path must differ from the manifest path", file=sys.stderr)
+            return 1
+
         lines = scan_manifest(root)
         report = "\n".join(lines) + ("\n" if lines else "")
-        if arguments.output:
-            Path(arguments.output).write_text(report, encoding="utf-8")
+        if output_path:
+            output_path.write_text(report, encoding="utf-8")
         else:
             print(report, end="")
     except (OSError, ET.ParseError) as error:
