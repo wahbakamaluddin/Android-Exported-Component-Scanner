@@ -42,8 +42,3 @@ POTENTIALLY_EXPORTED service: com.example.app.SyncService | permission: com.exam
 ```
 
 Each line has the status, component type, component name and the `android:permission` guarding it (`none` if unset). Entries are ordered activities, receivers, then services.
-
-## Limitations
-
-- Only `<activity>`, `<receiver>` and `<service>` are scanned. `<provider>` and `<activity-alias>` are not.
-- It reads the manifest only and does not resolve manifest merging or the target SDK version.
