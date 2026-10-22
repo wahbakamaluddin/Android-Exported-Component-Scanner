@@ -47,9 +47,3 @@ Each line has the status, component type, component name and the `android:permis
 
 - Only `<activity>`, `<receiver>` and `<service>` are scanned. `<provider>` and `<activity-alias>` are not.
 - It reads the manifest only and does not resolve manifest merging or the target SDK version.
-
-## Tests
-
-```bash
-python3 -m unittest discover -s tests
-```
